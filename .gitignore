@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+audio/
+server.key
+server.crt
+*.bak
