@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 audio/
+config.json
 server.key
 server.crt
 *.bak

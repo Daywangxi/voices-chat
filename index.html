@@ -3,150 +3,664 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<meta name="theme-color" content="#1a1a2e">
-<title>🎙️ 语音聊天</title>
+<meta name="theme-color" content="#2b2b2b">
+<title>艾拉</title>
 <style>
+/* ===== CSS Variables ===== */
+:root {
+  --bg-page: #f2f2f2;
+  --bg-header: #2b2b2b;
+  --bg-recorder: #ffffff;
+  --bg-bubble-self: #95ec69;
+  --bg-bubble-other: #ffffff;
+  --color-primary: #07c160;
+  --color-primary-dark: #06ad56;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #999999;
+  --color-text-header: #ffffff;
+  --color-border: #e6e6e6;
+  --color-transcript: #888888;
+  --color-unread: #ff3b30;
+  --radius-bubble: 10px;
+  --radius-sheet: 16px;
+  --shadow-bubble: 0 1px 2px rgba(0,0,0,0.06);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;background:#1a1a2e;color:#e0e0e0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
-.header{background:#16213e;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #0f3460;flex-shrink:0}
-.header h1{font-size:18px;font-weight:600;flex:1}
-.header .status{font-size:12px;color:#8892b0;display:flex;align-items:center;gap:4px}
-.header .settings-btn{background:none;border:none;color:#8892b0;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.header .settings-btn:active{background:rgba(255,255,255,.1)}
-.header .status .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block}
-.header .status .dot.busy{background:#fbbf24}
-.header .status .dot.off{background:#ef4444}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans SC",sans-serif;
+  background:var(--bg-page);
+  color:var(--color-text);
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
 
-.chat-area{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
-.chat-area::-webkit-scrollbar{width:4px}
-.chat-area::-webkit-scrollbar-thumb{background:#0f3460;border-radius:2px}
+/* ===== Header ===== */
+.header{
+  background:var(--bg-header);
+  height:56px;
+  padding:0 8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.header-title{
+  font-size:18px;
+  font-weight:600;
+  color:var(--color-text-header);
+  letter-spacing:0.5px;
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+}
+.header-left,.header-right{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  z-index:1;
+}
+.header-btn{
+  background:none;
+  border:none;
+  color:var(--color-text-header);
+  font-size:22px;
+  width:40px;
+  height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s;
+  touch-action:manipulation;
+}
+.header-btn:active{background:rgba(255,255,255,.1)}
 
-.bubble{max-width:82%;display:flex;flex-direction:column;gap:4px;animation:fadeIn .25s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* ===== Chat Area ===== */
+.chat-area{
+  flex:1;
+  overflow-y:auto;
+  padding:16px 16px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  scroll-behavior:smooth;
+  background:var(--bg-page);
+}
+.chat-area::-webkit-scrollbar{width:3px}
+.chat-area::-webkit-scrollbar-thumb{background:#ccc;border-radius:2px}
+
+/* ===== Empty State ===== */
+.empty-state{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  color:var(--color-text-secondary);
+  -webkit-user-select:none;
+  user-select:none;
+}
+.empty-state .icon{font-size:48px;opacity:.4}
+.empty-state p{font-size:15px;line-height:1.5;text-align:center}
+
+/* ===== Bubbles ===== */
+.bubble{
+  max-width:75%;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  animation:msgIn .25s ease;
+}
+@keyframes msgIn{
+  from{opacity:0;transform:translateY(8px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
 .bubble.self{align-self:flex-end;align-items:flex-end}
 .bubble.other{align-self:flex-start;align-items:flex-start}
-.bubble .voice-card{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;cursor:pointer;transition:opacity .15s;user-select:none;-webkit-tap-highlight-color:transparent;min-width:80px}
-.bubble.self .voice-card{background:#0f3460;border-bottom-right-radius:3px}
-.bubble.other .voice-card{background:#16213e;border-bottom-left-radius:3px}
-.bubble .voice-card:active{opacity:.7}
-.bubble .voice-card .speaker{font-size:14px;flex-shrink:0;line-height:1}
-.bubble .voice-card .wave{display:flex;align-items:center;gap:1.5px;height:14px;flex:1}
-.bubble .voice-card .wave .bar{width:2px;border-radius:2px;background:currentColor}
-.bubble .voice-card .duration{font-size:11px;color:#8892b0;white-space:nowrap;min-width:20px;text-align:right}
-.bubble .transcript{font-size:11px;color:#8892b0;padding:0 2px;max-width:100%;word-break:break-all;line-height:1.3}
-.bubble.self .transcript{text-align:right}
 
-/* ===== 底部录音栏 ===== */
-.recorder-bar{flex-shrink:0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));background:#16213e;border-top:1px solid #0f3460;display:flex;flex-direction:column;align-items:center;gap:10px}
-.recorder-bar .record-btn{width:72px;height:72px;border-radius:50%;border:3px solid #4ade80;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .25s ease;-webkit-tap-highlight-color:transparent;touch-action:none;position:relative}
-.recorder-bar .record-btn .mic{font-size:30px;transition:transform .25s ease}
-.recorder-bar .record-btn .rec-time{position:absolute;top:4px;right:4px;font-size:11px;color:#ef4444;font-variant-numeric:tabular-nums;white-space:nowrap;background:rgba(26,26,46,.7);padding:1px 5px;border-radius:6px}
-.recorder-bar .record-btn.recording{border-color:#ef4444;background:rgba(239,68,68,.12);transform:scale(1.08)}
-.recorder-bar .record-btn.recording .mic{animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
-.recorder-bar .hint{font-size:13px;color:#8892b0;transition:color .2s;text-align:center;min-height:20px}
-.recorder-bar .hint.recording{color:#ef4444}
-.recorder-bar .hint.processing{color:#fbbf24}
+/* ===== Voice Card ===== */
+.voice-card{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  border-radius:var(--radius-bubble);
+  cursor:pointer;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  position:relative;
+  transition:opacity .15s;
+  min-width:90px;
+}
+.voice-card:active{opacity:.7}
+.bubble.self .voice-card{
+  background:var(--bg-bubble-self);
+  color:var(--color-text);
+  border-bottom-right-radius:3px;
+}
+.bubble.other .voice-card{
+  background:var(--bg-bubble-other);
+  color:var(--color-text);
+  border-bottom-left-radius:3px;
+  box-shadow:var(--shadow-bubble);
+}
 
-/* ===== 预览面板 ===== */
-.preview-panel{display:none;flex-direction:column;align-items:center;gap:12px;width:100%}
-.preview-panel.show{display:flex}
-.preview-panel .preview-info{display:flex;align-items:center;gap:10px;color:#e0e0e0;font-size:14px}
-.preview-panel .preview-info .play-preview{width:40px;height:40px;border-radius:50%;border:2px solid #4ade80;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.preview-panel .preview-info .play-preview:active{background:rgba(74,222,128,.15)}
-.preview-panel .preview-info .play-preview.playing{border-color:#fbbf24}
-.preview-panel .preview-actions{display:flex;gap:16px}
-.preview-panel .preview-actions button{padding:8px 24px;border-radius:20px;border:none;font-size:14px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;font-weight:500}
-.preview-panel .preview-actions .btn-cancel{background:#3a3a5c;color:#a0a8c0}
-.preview-panel .preview-actions .btn-cancel:active{background:#4a4a6c}
-.preview-panel .preview-actions .btn-send{background:#4ade80;color:#1a1a2e}
-.preview-panel .preview-actions .btn-send:active{background:#3bc86e}
+/* ===== Triangle Tail (小尾巴) ===== */
+.voice-card::after{
+  content:'';
+  position:absolute;
+  top:12px;
+  border:6px solid transparent;
+}
+.bubble.self .voice-card::after{
+  right:-6px;
+  border-left-color:var(--bg-bubble-self);
+  border-right:0;
+}
+.bubble.other .voice-card::after{
+  left:-6px;
+  border-right-color:var(--bg-bubble-other);
+  border-left:0;
+}
 
-.recorder-bar .rec-mode{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
-.recorder-bar .rec-mode.hidden{display:none}
+/* ===== Voice Icon (Waveform Bars) ===== */
+.voice-icon{
+  display:flex;
+  align-items:center;
+  gap:2.5px;
+  height:22px;
+  flex-shrink:0;
+}
+.voice-icon .bar{
+  width:3px;
+  border-radius:2px;
+  background:currentColor;
+  opacity:.45;
+}
+.voice-icon .bar:nth-child(1){height:10px}
+.voice-icon .bar:nth-child(2){height:18px}
+.voice-icon .bar:nth-child(3){height:14px}
+.voice-icon .bar:nth-child(4){height:8px}
 
-.loading-dots{display:flex;gap:4px;padding:12px 0}
-.loading-dots span{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:bounce 1.4s infinite}
-.loading-dots span:nth-child(2){animation-delay:.2s}
-.loading-dots span:nth-child(3){animation-delay:.4s}
-@keyframes bounce{0%,80%,100%{transform:scale(.6)}40%{transform:scale(1)}}
+/* Playing animation */
+@keyframes w1{0%,100%{height:10px}50%{height:22px}}
+@keyframes w2{0%,100%{height:18px}50%{height:8px}}
+@keyframes w3{0%,100%{height:14px}50%{height:24px}}
+@keyframes w4{0%,100%{height:8px}50%{height:18px}}
+.voice-card.playing .bar:nth-child(1){animation:w1 .65s ease infinite}
+.voice-card.playing .bar:nth-child(2){animation:w2 .75s ease infinite}
+.voice-card.playing .bar:nth-child(3){animation:w3 .7s ease infinite}
+.voice-card.playing .bar:nth-child(4){animation:w4 .8s ease infinite}
 
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;z-index:100;animation:toastIn .3s ease;max-width:90%}
-@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* ===== Voice Duration ===== */
+.voice-duration{
+  font-size:13px;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  min-width:28px;
+  text-align:right;
+  flex-shrink:0;
+  font-weight:500;
+  margin-left:auto;
+}
 
-.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8892b0;gap:8px;text-align:center;padding:40px}
-.empty-state .icon{font-size:48px;opacity:.5}
-.empty-state p{font-size:14px;line-height:1.6}
-/* ===== 设置弹窗 ===== */
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+/* ===== Unread Dot (only for other bubbles) ===== */
+.unread-dot{
+  display:none;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--color-unread);
+  flex-shrink:0;
+}
+.bubble.other .voice-card:not(.played) .unread-dot{display:block}
+
+/* ===== Transcript ===== */
+.transcript{
+  font-size:12px;
+  color:var(--color-transcript);
+  line-height:1.4;
+  max-width:100%;
+  word-break:break-all;
+  padding:0 2px;
+}
+.bubble.other .transcript{display:block}
+.bubble.self .transcript{
+  overflow:hidden;
+  max-height:0;
+  opacity:0;
+  transition:max-height .3s ease,opacity .3s ease,margin .25s ease;
+  margin-top:0;
+}
+.bubble.self .transcript.show{
+  max-height:80px;
+  opacity:1;
+  margin-top:4px;
+}
+
+/* ===== Recorder Bar ===== */
+.recorder-bar{
+  flex-shrink:0;
+  padding:8px 16px calc(8px + var(--safe-bottom));
+  background:var(--bg-recorder);
+  border-top:1px solid var(--color-border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.voice-btn{
+  width:100%;
+  max-width:480px;
+  height:48px;
+  border-radius:24px;
+  border:1px solid var(--color-border);
+  background:#fafafa;
+  color:var(--color-text);
+  font-size:16px;
+  font-weight:500;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  touch-action:none;
+  transition:all .15s;
+  font-family:inherit;
+  outline:none;
+  letter-spacing:.5px;
+}
+.voice-btn:active,.voice-btn.pressed{
+  background:#e6e6e6;
+  border-color:#ccc;
+  transform:scale(.98);
+}
+.voice-btn.recording-state{
+  background:#d9d9d9;
+  color:#666;
+  border-color:#07c160;
+  box-shadow:0 0 0 3px rgba(7,193,96,.25), 0 0 12px rgba(7,193,96,.15);
+}
+
+/* ===== Top Recording Status Bar ===== */
+.rec-status-bar{
+  display:none;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:6px 16px;
+  background:rgba(7,193,96,.08);
+  border-bottom:1px solid rgba(7,193,96,.15);
+  font-size:13px;
+  color:var(--color-primary);
+  flex-shrink:0;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.rec-status-bar.show{display:flex}
+.rec-status-bar .dot{
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--color-unread);
+  animation:recPulse 1s infinite;
+}
+.rec-status-bar .text{font-weight:500}
+.rec-status-bar .hint{color:#999;font-size:12px;margin-left:auto}
+.voice-btn:disabled{
+  background:#f5f5f5;
+  color:#bbb;
+  border-color:#e0e0e0;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* ===== Recording Overlay ===== */
+.recording-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  z-index:100;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:24px;
+}
+.recording-overlay.show{display:flex}
+.rec-indicator{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  background:rgba(0,0,0,.7);
+  padding:18px 36px;
+  border-radius:30px;
+}
+.rec-dot{
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:var(--color-unread);
+  animation:recPulse 1s infinite;
+}
+@keyframes recPulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(.85)}
+}
+.rec-duration{
+  color:#fff;
+  font-size:22px;
+  font-variant-numeric:tabular-nums;
+  font-weight:600;
+}
+.rec-label{
+  color:rgba(255,255,255,.7);
+  font-size:15px;
+  letter-spacing:1px;
+}
+.cancel-zone{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:100px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.5);
+  font-size:16px;
+  letter-spacing:1px;
+  transition:color .2s,background .2s;
+  padding-top:20px;
+}
+.cancel-zone.active{
+  color:#ff3b30;
+  background:rgba(255,59,48,.08);
+}
+
+/* ===== Thinking Indicator ===== */
+.thinking-dots{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:14px 20px;
+  background:var(--bg-bubble-other);
+  border-radius:var(--radius-bubble);
+  border-bottom-left-radius:3px;
+  box-shadow:var(--shadow-bubble);
+  position:relative;
+}
+.thinking-dots span{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#bbb;
+  animation:thinkBounce 1.2s infinite;
+}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+@keyframes thinkBounce{
+  0%,60%,100%{transform:translateY(0)}
+  30%{transform:translateY(-6px)}
+}
+
+/* ===== Bottom Sheet Modal ===== */
+.modal-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.4);
+  z-index:200;
+  align-items:flex-end;
+  justify-content:center;
+}
 .modal-overlay.show{display:flex}
-.modal{background:#1a1a2e;border:1px solid #0f3460;border-radius:12px;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column}
-.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #0f3460}
-.modal-header h2{font-size:15px;font-weight:600}
-.modal-header .close-btn{background:none;border:none;color:#8892b0;font-size:20px;cursor:pointer;padding:0 4px}
-.modal-body{padding:14px 16px;flex:1;overflow-y:auto}
-.modal-body label{display:block;font-size:12px;color:#8892b0;margin-bottom:6px}
-.modal-body textarea{width:100%;height:200px;background:#16213e;border:1px solid #0f3460;border-radius:8px;color:#e0e0e0;font-size:13px;padding:10px;resize:vertical;font-family:inherit;line-height:1.5;outline:none}
-.modal-body textarea:focus{border-color:#4ade80}
-.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid #0f3460}
-.modal-footer button{padding:7px 20px;border-radius:16px;border:none;font-size:13px;cursor:pointer;font-weight:500;transition:all .2s}
-.modal-footer .btn-cancel{background:#3a3a5c;color:#a0a8c0}
-.modal-footer .btn-cancel:active{background:#4a4a6c}
-.modal-footer .btn-save{background:#4ade80;color:#1a1a2e}
-.modal-footer .btn-save:active{background:#3bc86e}
-.modal-footer .btn-save:disabled{opacity:.5;cursor:not-allowed}
+.bottom-sheet{
+  background:#fff;
+  width:100%;
+  max-width:500px;
+  border-radius:var(--radius-sheet) var(--radius-sheet) 0 0;
+  display:flex;
+  flex-direction:column;
+  max-height:75vh;
+  animation:sheetUp .3s ease;
+}
+@keyframes sheetUp{
+  from{transform:translateY(100%)}
+  to{transform:translateY(0)}
+}
+.sheet-handle{
+  width:36px;
+  height:4px;
+  background:#ddd;
+  border-radius:2px;
+  margin:10px auto 6px;
+  flex-shrink:0;
+}
+.sheet-header{
+  padding:4px 20px 16px;
+  text-align:center;
+  flex-shrink:0;
+}
+.sheet-header h2{
+  font-size:17px;
+  font-weight:600;
+}
+.sheet-body{
+  padding:0 20px;
+  flex:1;
+  overflow-y:auto;
+}
+.sheet-body label{
+  display:block;
+  font-size:12px;
+  color:var(--color-text-secondary);
+  margin-bottom:8px;
+}
+.sheet-section{margin-bottom:8px}
+.sheet-section-title{font-size:15px;font-weight:600;margin-bottom:10px;color:var(--color-text)}
+.sheet-divider{height:1px;background:var(--color-border);margin:14px 0}
+
+.sheet-body textarea{
+  width:100%;
+  height:160px;
+  border:1px solid var(--color-border);
+  border-radius:10px;
+  padding:12px;
+  font-size:14px;
+  font-family:inherit;
+  resize:none;
+  outline:none;
+  line-height:1.5;
+  transition:border-color .2s;
+}
+.sheet-body textarea:focus{border-color:var(--color-primary)}
+
+.field-group{margin-bottom:14px}
+.field-group label{display:block;font-size:12px;color:var(--color-text-secondary);margin-bottom:6px}
+.password-field{display:flex;align-items:center;gap:0}
+.password-field input{
+  flex:1;
+  height:42px;
+  border:1px solid var(--color-border);
+  border-right:none;
+  border-radius:10px 0 0 10px;
+  padding:0 12px;
+  font-size:14px;
+  font-family:inherit;
+  outline:none;
+  transition:border-color .2s;
+}
+.password-field input:focus{border-color:var(--color-primary)}
+.password-field .pw-toggle{
+  width:42px;
+  height:42px;
+  border:1px solid var(--color-border);
+  border-radius:0 10px 10px 0;
+  background:#fafafa;
+  color:#999;
+  font-size:16px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  flex-shrink:0;
+  transition:background .15s;
+}
+.password-field .pw-toggle:active{background:#f0f0f0}
+.field-status{display:block;font-size:11px;margin-top:4px;padding-left:2px}
+.field-status.ok{color:var(--color-primary)}
+.field-status.missing{color:#999}
+.sheet-footer{
+  display:flex;
+  gap:12px;
+  padding:16px 20px calc(16px + var(--safe-bottom));
+  border-top:1px solid var(--color-border);
+  margin-top:12px;
+  flex-shrink:0;
+}
+.sheet-footer button{
+  flex:1;
+  height:44px;
+  border-radius:22px;
+  border:none;
+  font-size:16px;
+  font-weight:500;
+  cursor:pointer;
+  font-family:inherit;
+  transition:all .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-cancel{background:#f2f2f2;color:var(--color-text)}
+.btn-cancel:active{background:#e6e6e6}
+.btn-save{background:var(--color-primary);color:#fff}
+.btn-save:active{background:var(--color-primary-dark)}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+
+/* ===== Toast ===== */
+.toast{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.75);
+  color:#fff;
+  padding:12px 24px;
+  border-radius:12px;
+  font-size:15px;
+  z-index:300;
+  animation:toastIn .25s ease;
+  pointer-events:none;
+  text-align:center;
+  max-width:80%;
+}
+@keyframes toastIn{
+  from{opacity:0;transform:translate(-50%,-50%) scale(.9)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}
+}
+
+/* ===== Responsive ===== */
+@media(min-width:481px){
+  body{max-width:480px;margin:0 auto;border-left:1px solid var(--color-border);border-right:1px solid var(--color-border)}
+}
 </style>
 </head>
 <body>
 
+<!-- ===== Header ===== -->
 <div class="header">
-  <h1>🎙️ 语音聊天</h1>
-  <div class="status">
-    <span class="dot" id="statusDot"></span>
-    <span id="statusText">就绪</span>
+  <div class="header-left">
+    <button type="button" class="header-btn" id="newChatBtn" title="新建对话">+</button>
   </div>
-  <button type="button" class="settings-btn" id="newChatBtn" title="新建对话">➕</button>
-  <button type="button" class="settings-btn" id="settingsBtn" title="人设提示词">⚙️</button>
+  <span class="header-title">艾拉</span>
+  <div class="header-right">
+    <button type="button" class="header-btn" id="settingsBtn" title="人设提示词">⚙️</button>
+  </div>
 </div>
 
+<!-- ===== Recording Status Bar (top of chat, visible during recording) ===== -->
+<div class="rec-status-bar" id="recStatusBar">
+  <span class="dot"></span>
+  <span class="text">录音中</span>
+  <span class="hint">上滑取消</span>
+</div>
+
+<!-- ===== Chat Area ===== -->
 <div class="chat-area" id="chatArea">
   <div class="empty-state" id="emptyState">
     <div class="icon">🎤</div>
-    <p>点击下方按钮开始录音<br>再次点击发送</p>
+    <p>按住底部按钮开始对话</p>
   </div>
 </div>
 
+<!-- ===== Recorder Bar ===== -->
 <div class="recorder-bar">
-  <div class="rec-mode" id="recMode">
-    <div class="hint" id="hintText">点击录音</div>
-    <button type="button" class="record-btn" id="recordBtn">
-      <span class="mic">🎤</span>
-    </button>
-  </div>
-  <div class="preview-panel" id="previewPanel">
-    <div class="preview-info">
-      <button type="button" class="play-preview" id="playPreviewBtn">▶️</button>
-      <span id="previewDuration">0"</span>
-    </div>
-    <div class="preview-actions">
-      <button type="button" class="btn-cancel" id="cancelBtn">取消</button>
-      <button type="button" class="btn-send" id="sendBtn">发送</button>
-    </div>
-  </div>
+  <button type="button" class="voice-btn" id="voiceBtn">按住说话</button>
 </div>
 
-<!-- ===== 设置弹窗 ===== -->
+<!-- ===== Recording Overlay ===== -->
+<div class="recording-overlay" id="recordingOverlay">
+  <div class="cancel-zone" id="cancelZone">↑ 松手取消</div>
+  <div class="rec-indicator">
+    <span class="rec-dot"></span>
+    <span class="rec-duration" id="recDuration">0"</span>
+  </div>
+  <div class="rec-label">录音中...</div>
+</div>
+
+<!-- ===== Settings Bottom Sheet ===== -->
 <div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>⚙️ 人设提示词</h2>
-      <button type="button" class="close-btn" id="modalCloseBtn">✕</button>
+  <div class="bottom-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>人设提示词</h2>
     </div>
-    <div class="modal-body">
-      <label for="promptInput">修改后保存将重置对话历史</label>
-      <textarea id="promptInput" spellcheck="false"></textarea>
+    <div class="sheet-body">
+      <div class="sheet-section">
+        <div class="sheet-section-title">人设提示词</div>
+        <label>修改后保存将重置对话历史</label>
+        <textarea id="promptInput" spellcheck="false"></textarea>
+      </div>
+
+      <div class="sheet-divider"></div>
+
+      <div class="sheet-section">
+        <div class="sheet-section-title">API 密钥</div>
+        <div class="field-group">
+          <label for="xiaomiKeyInput">MiMo API Key (语音识别 / 语音合成)</label>
+          <div class="password-field">
+            <input type="password" id="xiaomiKeyInput" spellcheck="false" autocomplete="off" placeholder="输入密钥">
+            <button type="button" class="pw-toggle" id="xiaomiKeyToggle" title="显示/隐藏">👁</button>
+          </div>
+          <span class="field-status" id="xiaomiKeyStatus"></span>
+        </div>
+        <div class="field-group">
+          <label for="codingKeyInput">Coding Plan Key (AI 对话)</label>
+          <div class="password-field">
+            <input type="password" id="codingKeyInput" spellcheck="false" autocomplete="off" placeholder="输入密钥">
+            <button type="button" class="pw-toggle" id="codingKeyToggle" title="显示/隐藏">👁</button>
+          </div>
+          <span class="field-status" id="codingKeyStatus"></span>
+        </div>
+      </div>
     </div>
-    <div class="modal-footer">
+    <div class="sheet-footer">
       <button type="button" class="btn-cancel" id="modalCancelBtn">取消</button>
       <button type="button" class="btn-save" id="modalSaveBtn">保存</button>
     </div>
@@ -154,10 +668,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans S
 </div>
 
 <script>
+// ==================== DOM Refs ====================
 const $ = id => document.getElementById(id);
-const chatArea = $("chatArea");
-const emptyState = $("emptyState");
+const chatArea = $('chatArea');
+const emptyState = $('emptyState');
+const voiceBtn = $('voiceBtn');
 
+// ==================== State ====================
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
@@ -165,347 +682,401 @@ let isProcessing = false;
 let stream = null;
 let recStartTime = 0;
 let recTimer = null;
+let holdTimer = null;
+let pointerStartY = 0;
+let activePointerId = null;
+let shouldCancel = false;
 
-// ========== 录音：点击开始 / 点击停止 ==========
-recordBtn.addEventListener("click", e => {
-  e.preventDefault();
-  if (isProcessing) return;
-  if (isRecording) {
-    // 只有 MediaRecorder 真正在录音时才允许停止
-    if (!mediaRecorder || mediaRecorder.state !== "recording") {
-      return;
-    }
-    // 最短录音时长检查：小于 500ms 视为误触，忽略停止操作
-    const elapsed = Date.now() - recStartTime;
-    if (elapsed < 500) {
-      return;
-    }
-    stopRec();
-  } else {
-    startRec();
+// ==================== Recording: Press and Hold ====================
+// Extra protection: prevent touch gestures on the button
+voiceBtn.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+// touchend fallback（部分移动端浏览器 pointerup 不触发）
+voiceBtn.addEventListener('touchend', e => {
+  if (isRecording && !isProcessing) {
+    clearTimeout(holdTimer);
+    voiceBtn.classList.remove('pressed', 'recording-state');
+    voiceBtn.textContent = '按住说话';
+    if (shouldCancel) { cancelRec(); } else { finishRec(); }
+    shouldCancel = false;
   }
 });
 
+voiceBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (isProcessing) return;
+
+  pointerStartY = e.clientY;
+  activePointerId = e.pointerId;
+  voiceBtn.setPointerCapture(e.pointerId);
+  voiceBtn.classList.add('pressed');
+
+  holdTimer = setTimeout(() => {
+    voiceBtn.textContent = '松手发送';
+    voiceBtn.classList.add('recording-state');
+    startRec();
+  }, 150);
+});
+
+voiceBtn.addEventListener('pointermove', e => {
+  if (!isRecording) return;
+  const dy = pointerStartY - e.clientY;
+  shouldCancel = dy > 80;
+  $('cancelZone').classList.toggle('active', shouldCancel);
+});
+
+// Prevent long-press context menu (copy/paste) on mobile
+document.addEventListener('contextmenu', e => {
+  if (e.target === voiceBtn || voiceBtn.contains(e.target)) e.preventDefault();
+});
+document.addEventListener('selectstart', e => {
+  if (e.target === voiceBtn || voiceBtn.contains(e.target)) e.preventDefault();
+});
+
+voiceBtn.addEventListener('pointerup', e => {
+  clearTimeout(holdTimer);
+
+  if (activePointerId !== null) {
+    voiceBtn.releasePointerCapture(activePointerId);
+    activePointerId = null;
+  }
+
+  voiceBtn.classList.remove('pressed', 'recording-state');
+  voiceBtn.textContent = '按住说话';
+
+  if (!isRecording) return;
+
+  // 如果麦克风还没就绪，直接 finishRec 会提示按住久一点
+  if (shouldCancel) {
+    cancelRec();
+  } else {
+    finishRec();
+  }
+  shouldCancel = false;
+});
+
+// ==================== Recording Logic ====================
 function startRec() {
-  if (isProcessing || isRecording) return;
+  if (isRecording || isProcessing) return;
   isRecording = true;
   audioChunks = [];
-  recStartTime = Date.now();
+  mediaRecorder = null;
 
-  $("recordBtn").classList.add("recording");
-  $("hintText").textContent = "请求麦克风权限…";
-  $("hintText").className = "hint";
-  setStatus("请求权限…", false);
+  // Show overlay immediately for instant visual feedback
+  showRecOverlay();
+  $('recStatusBar').classList.add('show');
+  $('recDuration').textContent = '...';
+  $('cancelZone').textContent = '等待麦克风...';
+
+  // Haptic feedback (mobile)
+  if (navigator.vibrate) navigator.vibrate(15);
+
+  // getUserMedia 超时保护（移动端 HTTP 可能一直 pending）
+  let micTimeout = setTimeout(() => {
+    if (!stream) {
+      isRecording = false;
+      hideRecOverlay();
+      stopRecTimer();
+      $('recStatusBar').classList.remove('show');
+      showToast('麦克风无响应，请使用 HTTPS 访问');
+    }
+  }, 8000);
 
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(s => {
+      clearTimeout(micTimeout);
       stream = s;
-      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus" : "audio/webm";
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
       mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.start();
-
-      $("hintText").textContent = "点击停止并发送";
-      $("hintText").className = "hint recording";
-      setStatus("录音中…", true);
-
-      // 计时
-      startTimer();
+      // 只在 MediaRecorder 真正启动后才开始计时
+      recStartTime = Date.now();
+      startRecTimer();
+      $('cancelZone').textContent = '↑ 松手取消';
+      $('recDuration').textContent = '0"';
     })
     .catch(err => {
+      clearTimeout(micTimeout);
       isRecording = false;
-      const name = err.name || "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        showToast("请在浏览器中允许麦克风权限");
+      hideRecOverlay();
+      stopRecTimer();
+      $('recStatusBar').classList.remove('show');
+      const name = err.name || '';
+      const msg = (err.message || '').toLowerCase();
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || msg.includes('permission')) {
+        showToast('请在浏览器中允许麦克风权限');
+      } else if (name === 'NotFoundError' || msg.includes('not found')) {
+        showToast('未检测到麦克风设备');
       } else {
-        showToast("无法访问麦克风: " + (err.message || "未知错误"));
+        showToast('无法访问麦克风: ' + (err.message || err.name || '未知错误'));
       }
-      resetRec();
     });
 }
 
-function stopRec() {
-  if (!isRecording) return;
+function finishRec() {
   isRecording = false;
-  stopTimer();
+  stopRecTimer();
+  hideRecOverlay();
+  $('recStatusBar').classList.remove('show');
 
-  $("recordBtn").classList.remove("recording");
-  $("hintText").textContent = "处理中…";
-
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    // 等 ondataavailable 触发后再预览
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.onstop = () => {
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-      showPreview();
+      cleanupStream();
+      sendAudio();
     };
     mediaRecorder.stop();
   } else {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
+    // 麦克风尚未就绪，用户松手太快
+    cleanupStream();
+    if (audioChunks.length === 0) {
+      showToast('请按住久一点，等麦克风启动');
+      resetPipeline();
+    } else {
+      sendAudio();
     }
-    showPreview();
   }
 }
 
-// ========== 计时器 ==========
-function startTimer() {
-  const btn = $("recordBtn");
-  let el = btn.querySelector(".rec-time");
-  if (!el) {
-    el = document.createElement("span");
-    el.className = "rec-time";
-    btn.appendChild(el);
+function cancelRec() {
+  isRecording = false;
+  stopRecTimer();
+  hideRecOverlay();
+  $('recStatusBar').classList.remove('show');
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = () => cleanupStream();
+    mediaRecorder.stop();
+  } else {
+    cleanupStream();
   }
+  showToast('已取消');
+}
+
+function cleanupStream() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+// ==================== Rec Timer ====================
+function startRecTimer() {
   recTimer = setInterval(() => {
     const sec = Math.floor((Date.now() - recStartTime) / 1000);
-    el.textContent = sec + '"';
-    if (sec >= 30) stopRec();
+    $('recDuration').textContent = sec + '"';
+    if (sec >= 60) finishRec();
   }, 200);
 }
 
-function stopTimer() {
+function stopRecTimer() {
   if (recTimer) { clearInterval(recTimer); recTimer = null; }
-  const el = $("recordBtn").querySelector(".rec-time");
-  if (el) el.remove();
 }
 
-// ========== 预览模式 ==========
-let previewAudioUrl = null;
-let previewAudio = null;
-
-function showPreview() {
-  const blob = new Blob(audioChunks, { type: "audio/webm" });
-  if (blob.size < 2000) {
-    showToast("录音太短了");
-    resetRec();
-    return;
-  }
-
-  const dur = Math.floor((Date.now() - recStartTime) / 1000);
-  $("previewDuration").textContent = dur + '"';
-
-  // 创建预览音频
-  if (previewAudioUrl) URL.revokeObjectURL(previewAudioUrl);
-  previewAudioUrl = URL.createObjectURL(blob);
-  previewAudio = new Audio(previewAudioUrl);
-  previewAudio.onended = () => {
-    $("playPreviewBtn").textContent = "▶️";
-    $("playPreviewBtn").classList.remove("playing");
-  };
-
-  $("recMode").classList.add("hidden");
-  $("previewPanel").classList.add("show");
-  $("hintText").textContent = "点击录音";
-  $("hintText").className = "hint";
-  setStatus("就绪", true);
+// ==================== Recording Overlay ====================
+function showRecOverlay() {
+  $('recordingOverlay').classList.add('show');
+  $('cancelZone').classList.remove('active');
+  $('recDuration').textContent = '0"';
 }
 
-function hidePreview() {
-  if (previewAudio) { previewAudio.pause(); previewAudio = null; }
-  if (previewAudioUrl) { URL.revokeObjectURL(previewAudioUrl); previewAudioUrl = null; }
-  $("playPreviewBtn").textContent = "▶️";
-  $("playPreviewBtn").classList.remove("playing");
-  $("previewPanel").classList.remove("show");
-  $("recMode").classList.remove("hidden");
+function hideRecOverlay() {
+  $('recordingOverlay').classList.remove('show');
 }
 
-$("playPreviewBtn").addEventListener("click", () => {
-  if (!previewAudio) return;
-  if (previewAudio.paused) {
-    previewAudio.play();
-    $("playPreviewBtn").textContent = "⏹";
-    $("playPreviewBtn").classList.add("playing");
-  } else {
-    previewAudio.pause();
-    previewAudio.currentTime = 0;
-    $("playPreviewBtn").textContent = "▶️";
-    $("playPreviewBtn").classList.remove("playing");
-  }
-});
-
-$("cancelBtn").addEventListener("click", () => {
-  hidePreview();
-  resetRec();
-});
-
-$("sendBtn").addEventListener("click", () => {
-  hidePreview();
-  $("hintText").textContent = "🤔 识别中…";
-  $("hintText").className = "hint processing";
-  setStatus("识别中…", false);
-  isProcessing = true;
-  sendAudio();
-});
-
-// ========== 发送音频到服务器 ASR → Chat → TTS ==========
+// ==================== ASR → Chat → TTS Pipeline ====================
 let currentUserAudioId = null;
+let lastUserBubble = null;
+
+function saveMsg(role, content, audioId) {
+  const payload = { role, content };
+  if (audioId) payload.audio_id = audioId;
+  fetch('/api/history/append', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+}
 
 function sendAudio() {
-  const blob = new Blob(audioChunks, { type: "audio/webm" });
-  if (blob.size < 2000) {
-    showToast("录音太短了");
-    resetRec();
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  if (audioChunks.length === 0 || blob.size < 300) {
+    showToast('录音太短了');
+    isProcessing = false;
     return;
   }
 
-  const dur = Math.max(1, Math.min(30, Math.round((Date.now() - recStartTime) / 1000)));
+  const dur = Math.max(1, Math.min(60, Math.round((Date.now() - recStartTime) / 1000)));
+  isProcessing = true;
 
-  // 显示用户气泡（先占位）
-  addBubble("self", dur, blob, "…");
+  // Show user bubble immediately
+  lastUserBubble = addVoiceBubble('self', dur, blob, '识别中...', false);
 
-  // 发到服务器 ASR
-  fetch("/api/asr", {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: blob
-  })
-  .then(r => {
-    if (!r.ok) return r.json().then(e => { throw new Error(e.error || "ASR 失败") });
-    return r.json();
-  })
-  .then(data => {
-    const text = data.text || "（语音消息）";
-    currentUserAudioId = data.audio_id || null;
-    updateLastTranscript(text);
-    // ASR 完成后调 AI 对话（传 audio_id 让服务器保存到历史）
-    return fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, audio_id: currentUserAudioId })
+  setStatus('识别中...');
+
+  // Step 1: ASR
+  fetch('/api/asr', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob })
+    .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'ASR 失败') }); return r.json(); })
+    .then(data => {
+      const text = data.text || '（语音消息）';
+      currentUserAudioId = data.audio_id || null;
+      updateTranscript(lastUserBubble, text);
+
+      // 保存用户消息（确保 ASR 成功后即持久化）
+      saveMsg('user', text, currentUserAudioId);
+
+      setStatus('思考中...');
+
+      // Step 2: Chat
+      return fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, audio_id: currentUserAudioId })
+      });
+    })
+    .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || '对话失败') }); return r.json(); })
+    .then(data => {
+      const reply = data.text || '嗯，我在听。';
+      setStatus('合成中...');
+      doTTS(reply);
+    })
+    .catch(err => {
+      doTTS('嗯，我在听。');
     });
-  })
-  .then(r => {
-    if (!r.ok) return r.json().then(e => { throw new Error(e.error || "对话失败") });
-    return r.json();
-  })
-  .then(data => {
-    const reply = data.text || "嗯，我在听。";
-    doTTS(reply, dur);
-  })
-  .catch(err => {
-    doTTS("嗯，我在听。", dur);
-  });
 }
 
-function updateLastTranscript(text) {
-  const bubbles = chatArea.querySelectorAll(".bubble.self");
-  const last = bubbles[bubbles.length - 1];
-  if (last) {
-    const t = last.querySelector(".transcript");
-    if (t) t.textContent = text;
-  }
+function updateTranscript(bubble, text) {
+  if (!bubble) return;
+  const t = bubble.querySelector('.transcript');
+  if (t) t.textContent = text;
 }
 
-// ========== TTS ==========
-function doTTS(text, userDur) {
+// ==================== TTS ====================
+function doTTS(text) {
   showThinking();
-  // 立即恢复录音按钮可用
-  resetRec();
 
-  fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
   })
-  .then(r => {
-    if (!r.ok) return r.json().then(e => { throw new Error(e.error || "TTS 失败") });
-    return r.json();
-  })
-  .then(data => {
-    hideThinking();
-    const audioB64 = data.audio_data;
-    const audioId = data.audio_id;
+    .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'TTS 失败') }); return r.json(); })
+    .then(data => {
+      hideThinking();
+      const audioB64 = data.audio_data;
+      const audioId = data.audio_id;
 
-    // base64 转 blob
-    const binaryStr = atob(audioB64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const binaryStr = atob(audioB64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const dur = calcDuration(blob);
 
-    const replyDur = calcDuration(blob);
-    addBubble("other", replyDur, blob, text);
+      addVoiceBubble('other', dur, blob, text, true);
 
-    // 保存 assistant 消息到历史（带 audio_id）
-    fetch("/api/history/append", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "assistant", content: text, audio_id: audioId })
-    }).catch(() => {});
-  })
-  .catch(err => {
-    hideThinking();
-    showToast("语音合成失败: " + err.message);
-  });
+      // 保存助手消息（TTS 成功，带音频 ID）
+      saveMsg('assistant', text, audioId);
+
+      resetPipeline();
+    })
+    .catch(err => {
+      hideThinking();
+      // TTS 失败仍保存文本到历史
+      addVoiceBubble('other', 0, null, text, true);
+      saveMsg('assistant', text);
+      showToast('语音合成失败: ' + err.message);
+      resetPipeline();
+    });
 }
 
-// ========== UI: 气泡 ==========
-function addBubble(side, duration, audioBlob, transcript) {
-  emptyState.style.display = "none";
+function resetPipeline() {
+  isProcessing = false;
+  setStatus('就绪');
+}
 
-  const bubble = document.createElement("div");
-  bubble.className = "bubble " + side;
+// ==================== Voice Bubble Rendering ====================
+function addVoiceBubble(side, duration, audioBlob, transcript, alwaysShowTranscript) {
+  emptyState.style.display = 'none';
 
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + side;
+
+  // Card
+  const card = document.createElement('div');
+  card.className = 'voice-card';
+  const w = Math.min(240, Math.max(90, 70 + duration * 6));
+  card.style.width = w + 'px';
+
+  // Voice icon
+  const icon = document.createElement('div');
+  icon.className = 'voice-icon';
+  for (let i = 0; i < 4; i++) {
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    icon.appendChild(bar);
+  }
+
+  // Duration
+  const durSpan = document.createElement('span');
+  durSpan.className = 'voice-duration';
+  durSpan.textContent = duration + '"';
+
+  // Unread dot (only for other)
+  if (side === 'other') {
+    const dot = document.createElement('span');
+    dot.className = 'unread-dot';
+    card.appendChild(dot);
+  }
+
+  card.appendChild(icon);
+  card.appendChild(durSpan);
+
+  // Audio
   if (audioBlob) {
-    // 有音频：显示语音条
-    const card = document.createElement("div");
-    card.className = "voice-card";
-
-    const speaker = document.createElement("span");
-    speaker.className = "speaker";
-    speaker.textContent = "🔊";
-
-    const wave = document.createElement("div");
-    wave.className = "wave";
-    for (let i = 0; i < 4; i++) {
-      const bar = document.createElement("span");
-      bar.className = "bar";
-      bar.style.height = (6 + Math.random() * 14) + "px";
-      wave.appendChild(bar);
-    }
-
-    const durSpan = document.createElement("span");
-    durSpan.className = "duration";
-    durSpan.textContent = duration + '"';
-
-    card.appendChild(speaker);
-    card.appendChild(wave);
-    card.appendChild(durSpan);
-
-    const trans = document.createElement("div");
-    trans.className = "transcript";
-    trans.textContent = transcript || "";
-
-    // 音频事件绑定
     const url = URL.createObjectURL(audioBlob);
     const audio = new Audio(url);
-    card.dataset.audioUrl = url;
 
-    audio.onended = () => { speaker.textContent = "🔊"; };
-    audio.onplay = () => { speaker.textContent = "🔊"; };
+    audio.onplay = () => {
+      card.classList.add('playing');
+      if (side === 'other') card.classList.add('played');
+      // Show transcript for self during playback
+      if (side === 'self') {
+        const t = bubble.querySelector('.transcript');
+        if (t) t.classList.add('show');
+      }
+    };
+    audio.onpause = () => {
+      card.classList.remove('playing');
+      if (side === 'self') {
+        const t = bubble.querySelector('.transcript');
+        if (t) t.classList.remove('show');
+      }
+    };
+    audio.onended = () => {
+      card.classList.remove('playing');
+      if (side === 'self') {
+        const t = bubble.querySelector('.transcript');
+        if (t) t.classList.remove('show');
+      }
+    };
 
-    card.addEventListener("click", () => {
+    card.addEventListener('click', () => {
       if (audio.paused) { audio.play(); }
       else { audio.pause(); }
     });
+  }
 
-    // 不自动播放，用户点击语音条才播放
+  bubble.appendChild(card);
 
-    bubble.appendChild(card);
-    bubble.appendChild(trans);
-  } else {
-    // 无音频：纯文本气泡
-    const textBubble = document.createElement("div");
-    textBubble.className = "voice-card";
-    textBubble.style.padding = "8px 12px";
-    textBubble.textContent = transcript || "";
-    bubble.appendChild(textBubble);
+  // Transcript
+  if (transcript) {
+    const t = document.createElement('div');
+    t.className = 'transcript';
+    t.textContent = transcript;
+    if (alwaysShowTranscript) {
+      t.classList.add('show');
+    }
+    bubble.appendChild(t);
   }
 
   chatArea.appendChild(bubble);
@@ -514,150 +1085,195 @@ function addBubble(side, duration, audioBlob, transcript) {
   return bubble;
 }
 
+// ==================== Thinking ====================
+let thinkingEl = null;
+
 function showThinking() {
-  const b = document.createElement("div");
-  b.className = "bubble other";
-  b.id = "thinkingBubble";
-  b.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
-  chatArea.appendChild(b);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble other';
+  bubble.id = 'thinkingBubble';
+  bubble.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
+  chatArea.appendChild(bubble);
   chatArea.scrollTop = chatArea.scrollHeight;
+  thinkingEl = bubble;
 }
 
 function hideThinking() {
-  const el = document.getElementById("thinkingBubble");
-  if (el) el.remove();
+  if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
 }
 
+// ==================== Status ====================
+function setStatus(text) {
+  if (text === '就绪') {
+    voiceBtn.textContent = '按住说话';
+    voiceBtn.disabled = false;
+  } else {
+    voiceBtn.textContent = text;
+    voiceBtn.disabled = true;
+  }
+}
+
+// ==================== Toast ====================
 function showToast(msg) {
-  const old = document.querySelector(".toast");
+  const old = document.querySelector('.toast');
   if (old) old.remove();
-  const t = document.createElement("div");
-  t.className = "toast";
+  const t = document.createElement('div');
+  t.className = 'toast';
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => t.remove(), 2500);
 }
 
-function resetRec() {
-  isProcessing = false;
-  $("hintText").textContent = "点击录音";
-  $("hintText").className = "hint";
-  setStatus("就绪", true);
-}
-
+// ==================== Utilities ====================
 function calcDuration(blob) {
   const sec = Math.round(blob.size / 6000);
   return Math.max(1, Math.min(99, sec));
 }
 
-function setStatus(text, ok) {
-  $("statusText").textContent = text;
-  $("statusDot").className = "dot" + (ok ? "" : " busy");
+function scrollToBottom() {
+  setTimeout(() => { chatArea.scrollTop = chatArea.scrollHeight; }, 50);
 }
 
-// ========== 新建对话 ==========
-$("newChatBtn").addEventListener("click", () => {
-  fetch("/api/reset", { method: "POST" })
-    .then(r => {
-      if (!r.ok) throw new Error("重置失败");
-      return r.json();
-    })
+// ==================== New Chat ====================
+$('newChatBtn').addEventListener('click', () => {
+  if (isProcessing) return;
+  fetch('/api/reset', { method: 'POST' })
+    .then(r => { if (!r.ok) throw new Error('重置失败'); return r.json(); })
     .then(() => {
-      // 清空聊天区域
       chatArea.innerHTML = '';
       chatArea.appendChild(emptyState);
-      emptyState.style.display = "flex";
-      showToast("✅ 已新建对话");
+      emptyState.style.display = 'flex';
+      showToast('已新建对话');
     })
-    .catch(err => showToast("新建对话失败: " + err.message));
+    .catch(err => showToast('新建对话失败: ' + err.message));
 });
 
-// ========== 设置弹窗 ==========
-$("settingsBtn").addEventListener("click", () => {
-  // 从服务器加载当前提示词
-  fetch("/api/prompt")
+// ==================== Settings ====================
+$('settingsBtn').addEventListener('click', () => {
+  // 加载提示词
+  fetch('/api/prompt')
     .then(r => r.json())
     .then(data => {
-      $("promptInput").value = data.prompt || "";
-      $("modalOverlay").classList.add("show");
+      $('promptInput').value = data.prompt || '';
     })
-    .catch(() => showToast("加载提示词失败"));
+    .catch(() => showToast('加载提示词失败'));
+
+  // 加载 API 密钥状态
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(data => {
+      $('xiaomiKeyInput').value = '';
+      $('codingKeyInput').value = '';
+      $('xiaomiKeyStatus').textContent = data.xiaomi_api_key ? '已设置' : '未设置';
+      $('xiaomiKeyStatus').className = 'field-status ' + (data.xiaomi_api_key ? 'ok' : 'missing');
+      $('codingKeyStatus').textContent = data.coding_plan_key ? '已设置' : '未设置';
+      $('codingKeyStatus').className = 'field-status ' + (data.coding_plan_key ? 'ok' : 'missing');
+    })
+    .catch(() => {});
+
+  $('modalOverlay').classList.add('show');
 });
 
-function closeModal() {
-  $("modalOverlay").classList.remove("show");
+function closeModal() { $('modalOverlay').classList.remove('show'); }
+
+$('modalCancelBtn').addEventListener('click', closeModal);
+$('modalOverlay').addEventListener('click', e => {
+  if (e.target === $('modalOverlay')) closeModal();
+});
+
+// 密码显示/隐藏切换
+function setupPwToggle(inputId, toggleId) {
+  const input = $(inputId);
+  const toggle = $(toggleId);
+  toggle.addEventListener('click', () => {
+    const isPw = input.type === 'password';
+    input.type = isPw ? 'text' : 'password';
+    toggle.textContent = isPw ? '🙈' : '👁';
+  });
 }
+setupPwToggle('xiaomiKeyInput', 'xiaomiKeyToggle');
+setupPwToggle('codingKeyInput', 'codingKeyToggle');
 
-$("modalCloseBtn").addEventListener("click", closeModal);
-$("modalCancelBtn").addEventListener("click", closeModal);
-$("modalOverlay").addEventListener("click", e => {
-  if (e.target === $("modalOverlay")) closeModal();
-});
+$('modalSaveBtn').addEventListener('click', () => {
+  const btn = $('modalSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
 
-$("modalSaveBtn").addEventListener("click", () => {
-  const prompt = $("promptInput").value.trim();
-  if (!prompt) {
-    showToast("提示词不能为空");
+  const prompt = $('promptInput').value.trim();
+  const xiaomiKey = $('xiaomiKeyInput').value.trim();
+  const codingKey = $('codingKeyInput').value.trim();
+
+  // 收集所有需要保存的请求
+  const requests = [];
+
+  if (prompt) {
+    requests.push(
+      fetch('/api/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      }).then(r => { if (!r.ok) throw new Error('提示词保存失败'); })
+    );
+  }
+
+  if (xiaomiKey || codingKey) {
+    const payload = {};
+    if (xiaomiKey) payload.xiaomi_api_key = xiaomiKey;
+    if (codingKey) payload.coding_plan_key = codingKey;
+    requests.push(
+      fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(r => { if (!r.ok) throw new Error('密钥保存失败'); })
+    );
+  }
+
+  if (requests.length === 0) {
+    showToast('没有需要保存的变更');
+    btn.disabled = false;
+    btn.textContent = '保存';
     return;
   }
 
-  const btn = $("modalSaveBtn");
-  btn.disabled = true;
-  btn.textContent = "保存中…";
-
-  fetch("/api/prompt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt })
-  })
-  .then(r => {
-    if (!r.ok) return r.json().then(e => { throw new Error(e.error || "保存失败") });
-    return r.json();
-  })
-  .then(() => {
-    showToast("✅ 提示词已保存，对话历史已重置");
-    closeModal();
-  })
-  .catch(err => {
-    showToast("保存失败: " + err.message);
-  })
-  .finally(() => {
-    btn.disabled = false;
-    btn.textContent = "保存";
-  });
+  Promise.all(requests)
+    .then(() => {
+      showToast('已保存');
+      closeModal();
+    })
+    .catch(err => showToast(err.message))
+    .finally(() => { btn.disabled = false; btn.textContent = '保存'; });
 });
 
-// ========== 加载历史记录 ==========
+// ==================== Load History ====================
 function loadHistory() {
-  fetch("/api/history")
+  fetch('/api/history')
     .then(r => r.json())
     .then(async history => {
       if (!Array.isArray(history) || history.length <= 1) return;
 
-      // 先收集所有需要加载的音频，按顺序渲染
       for (let i = 1; i < history.length; i++) {
         const msg = history[i];
-        const side = msg.role === "user" ? "self" : "other";
+        const side = msg.role === 'user' ? 'self' : 'other';
 
         if (msg.audio) {
           try {
-            const resp = await fetch("/api/audio/" + msg.audio);
+            const resp = await fetch('/api/audio/' + msg.audio);
             const blob = await resp.blob();
             const dur = Math.round(blob.size / 6000);
-            addBubble(side, Math.max(1, Math.min(99, dur)), blob, msg.content);
+            addVoiceBubble(side, Math.max(1, Math.min(99, dur)), blob, msg.content, side === 'other');
           } catch {
-            addBubble(side, 0, null, msg.content);
+            addVoiceBubble(side, 0, null, msg.content, side === 'other');
           }
         } else {
-          addBubble(side, 0, null, msg.content);
+          addVoiceBubble(side, 0, null, msg.content, side === 'other');
         }
       }
     })
     .catch(() => {});
 }
 
-// ========== Boot ==========
-setStatus("就绪", true);
+// ==================== Boot ====================
 loadHistory();
 </script>
 </body>
